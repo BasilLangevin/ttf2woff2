@@ -1,7 +1,25 @@
 import { YError } from 'yerror';
-import theTTFToWOFF2Module from './ttf2woff2.cjs';
+import ttf2woff2Factory from './ttf2woff2.cjs';
+import wasmModule from './ttf2woff2.wasm';
 
-export default function ttf2woff2(inputContent) {
+let module = null;
+
+async function getModule() {
+  if (!module) {
+    module = await ttf2woff2Factory({
+      instantiateWasm(imports, receiveInstance) {
+        const instance = new WebAssembly.Instance(wasmModule, imports);
+        receiveInstance(instance, wasmModule);
+        return instance.exports;
+      },
+    });
+  }
+  return module;
+}
+
+export default async function ttf2woff2(inputContent) {
+  const theTTFToWOFF2Module = await getModule();
+
   // Prepare input
   const inputBuffer = theTTFToWOFF2Module._malloc(inputContent.length + 1);
   const outputSizePtr = theTTFToWOFF2Module._malloc(4);
